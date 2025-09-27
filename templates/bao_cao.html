@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo cáo Phân tích Điểm</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#5AC8FA',
+                        'secondary': '#007AFF',
+                        'success': '#34C759',
+                        'danger': '#FF3B30',
+                        'warning': '#FF9500',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8 font-sans">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800">Báo Cáo Tổng Quan Điểm Số</h1>
+            <p class="text-gray-500 mt-2">Phân tích kết quả học tập từ dữ liệu đã nhập</p>
+        </header>
+
+        <div class="mb-6">
+            <a href="{{ url_for('index') }}" class="inline-flex items-center text-secondary hover:text-blue-700 transition duration-150 font-medium">
+                <i class="fas fa-arrow-left mr-2"></i> Trở về Trang Nhập liệu
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-primary">
+                <p class="text-sm font-semibold text-gray-500 uppercase">Điểm Trung bình Chung</p>
+                <p class="text-4xl font-extrabold text-gray-900 mt-1">{{ avg_score | replace('.', ',') }}</p>
+                <p class="text-xs text-gray-500 mt-1">Dựa trên tất cả các môn đã nhập điểm cuối cùng.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-success">
+                <p class="text-sm font-semibold text-gray-500 uppercase">Số môn Đạt (>= 5.0)</p>
+                <p class="text-4xl font-extrabold text-success mt-1">{{ pass_count }}</p>
+                <p class="text-xs text-gray-500 mt-1">Các môn đạt yêu cầu cơ bản.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-lg border-l-4 border-danger">
+                <p class="text-sm font-semibold text-gray-500 uppercase">Số môn Cần cải thiện (< 5.0)</p>
+                <p class="text-4xl font-extrabold text-danger mt-1">{{ fail_count }}</p>
+                <p class="text-xs text-gray-500 mt-1">Các môn cần sự hỗ trợ thêm.</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <div class="lg:col-span-2 bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-700 flex items-center">
+                    <i class="fas fa-chart-line text-primary mr-3"></i> Biểu đồ Phân bổ Điểm trung bình Môn
+                </h2>
+                {% if avg_score!= 'N/A' %}
+                    <img src="{{ url_for('static', filename='bieu_do.png') }}?v={{ range(1, 1000) | random }}" alt="Biểu đồ phân bổ điểm số" class="w-full rounded-lg shadow-inner">
+                {% else %}
+                    <p class="text-center text-gray-500 py-12">Chưa đủ dữ liệu điểm để tạo biểu đồ.</p>
+                {% endif %}
+            </div>
+
+            <div class="lg:col-span-1 bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+                <h2 class="text-2xl font-bold mb-6 text-gray-700 flex items-center">
+                    <i class="fas fa-sticky-note text-warning mr-3"></i> Nhận xét Chi tiết
+                </h2>
+                <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                    {% if notes|length > 0 %}
+                        {% for note in notes %}
+                            {% if note.type == 'Đạt' %}
+                                <div class="p-3 rounded-lg border-l-4 border-success bg-green-50">
+                                    <p class="text-sm font-semibold text-success">{{ note.type }}</p>
+                                    <p class="text-sm text-gray-700 mt-1">{{ note.message | replace('.', ',') }}</p>
+                                </div>
+                            {% else %}
+                                <div class="p-3 rounded-lg border-l-4 border-danger bg-red-50">
+                                    <p class="text-sm font-semibold text-danger">{{ note.type }}</p>
+                                    <p class="text-sm text-gray-700 mt-1">{{ note.message | replace('.', ',') }}</p>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center text-gray-500 pt-4">Không có điểm trung bình môn nào hợp lệ để tạo nhận xét.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+
+        <footer class="text-center text-gray-500 text-sm mt-10">
+            &copy; 2025 Hệ thống Phân tích Điểm số.
+        </footer>
+    </div>
+
+</body>
+</html>

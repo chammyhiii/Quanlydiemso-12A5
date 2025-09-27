@@ -1,0 +1,386 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+:root {
+    --primary-color: #7B85F1;
+    --secondary-color: #58E6D9;
+    --accent-color: #FFA5D3;
+    --text-color: #2D3748;
+    --light-bg: #F4F7F9;
+    --card-bg: #FFFFFF;
+    --shadow-light: rgba(0, 0, 0, 0.05);
+    --shadow-medium: rgba(0, 0, 0, 0.1);
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-color);
+    line-height: 1.6;
+    margin: 0;
+    padding: 0;
+    /* Nền chuyển động gradient */
+    background: linear-gradient(45deg, #F0F4F7, #E8F0F5, #F5E8F0);
+    background-size: 400% 400%;
+    animation: gradient-animation 15s ease infinite;
+    overflow-x: hidden;
+}
+
+@keyframes gradient-animation {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.container {
+    width: 95%;
+    max-width: 1400px;
+    margin: 40px auto;
+    background: var(--card-bg);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px var(--shadow-medium);
+}
+
+h1, h2 {
+    color: var(--primary-color);
+    text-align: center;
+    font-weight: 600;
+}
+
+h1 {
+    font-size: 2.8rem;
+    border-bottom: 3px solid #6E79EC;
+    display: inline-block;
+    padding-bottom: 5px;
+    color: #404A8C;
+}
+
+/* Updated CSS for 4-column layout */
+.forms-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 30px;
+    margin-bottom: 50px;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 1200px) {
+    .forms-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .forms-container {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-section {
+    background: #F8F9FB;
+    padding: 30px;
+    border-radius: 15px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 4px 20px var(--shadow-light);
+    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-section:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px var(--shadow-medium);
+}
+
+.form-section h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 1.4rem;
+    color: #404A8C;
+}
+
+.form-section h2 i {
+    margin-right: 10px;
+}
+
+input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-sizing: border-box;
+    font-size: 1rem;
+    color: #495057;
+    background-color: var(--card-bg);
+    transition: all 0.3s;
+}
+
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(123, 133, 241, 0.25);
+    outline: none;
+}
+
+select {
+    height: 44px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-caret-down-fill" viewBox="0 0 16 16"><path d="M7.247 11.14c.068.106.154.19.253.253.099.063.205.106.315.106s.216-.043.315-.106c.099-.063.185-.147.253-.253l2.85-4.57c.102-.164.15-.357.135-.558.016-.201-.032-.394-.135-.558-.094-.15-.224-.265-.378-.346-.154-.081-.322-.122-.49-.122s-.336.041-.49.122l-2.022 3.243-2.022-3.243c-.154-.081-.322-.122-.49-.122s-.336.041-.49.122c-.154.081-.284.196-.378.346-.102.164-.15.357-.135.558.016.201-.032.394-.135.558l2.85 4.57z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 10px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: #6E79EC;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+    margin-top: auto;
+    box-shadow: 0 4px 10px rgba(110, 121, 236, 0.3);
+}
+
+button:hover {
+    background-color: #5B64D3;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(110, 121, 236, 0.4);
+}
+
+.section-title {
+    text-align: center;
+    font-size: 2.5rem;
+    color: #404A8C;
+    font-weight: 600;
+    border-bottom: 2px solid #6E79EC;
+    display: inline-block;
+    padding-bottom: 5px;
+    margin-bottom: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 20px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px var(--shadow-medium);
+}
+
+table th, table td {
+    text-align: center;
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+table th {
+    background-color: #F8F9FB;
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+table td {
+    font-size: 0.9rem;
+}
+
+table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.report-button {
+    display: block;
+    width: 90%;
+    margin: 20px auto 0 auto;
+    padding: 12px;
+    background-color: var(--secondary-color);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    transition: background-color 0.3s, transform 0.2s;
+    font-weight: 500;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(88, 230, 217, 0.3);
+}
+
+.report-button:hover {
+    background-color: #4AD7C8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(88, 230, 217, 0.4);
+}
+
+.report-btn-section p {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 0.95rem;
+    color: #666;
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* PHẦN ĐỊNH DẠNG TRANG BÁO CÁO (BAO_CAO.HTML) */
+/* -------------------------------------------------------------------------- */
+
+.report-section {
+    margin-top: 40px;
+}
+
+/* 1. Bố cục lưới chính thoáng hơn */
+.main-grid-layout {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr; /* Cột trái rộng hơn */
+    gap: 40px; /* Khoảng cách lớn hơn giữa các cột */
+    align-items: start;
+    margin-top: 30px;
+}
+
+/* 2. Định dạng Card (Thẻ) chung thoáng đẹp */
+.card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 35px; /* Khoảng cách dọc thoáng hơn */
+    box-shadow: 0 6px 18px var(--shadow-light);
+    border: 1px solid #f5f5f5;
+    transition: all 0.3s ease;
+    min-height: 200px;
+}
+
+.card:hover {
+    box-shadow: 0 10px 28px var(--shadow-medium);
+    transform: translateY(-3px);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #ececec;
+    padding-bottom: 12px;
+}
+
+.card-header h2 {
+    text-align: left;
+    font-size: 1.4rem;
+    color: var(--text-color);
+    margin: 0;
+    border-bottom: none;
+}
+
+.card-icon {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+    margin-right: 15px;
+}
+
+/* 3. Định dạng Card Summary */
+.card-summary {
+    background: #EBF1FF;
+}
+
+.summary-text {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    margin: 0;
+    padding: 10px 0;
+}
+
+.highlight-score {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-left: 10px;
+}
+
+/* 4. Định dạng Card Thống kê (Stats) */
+.card-stats {
+    background: #FFF0F5;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #e0e0e0;
+}
+
+.stat-item:last-child {
+    border-bottom: none;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #555;
+}
+
+.stat-value {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+}
+
+/* 5. Định dạng Card Bảng (Table) */
+.card-table table {
+    margin-top: 0;
+    box-shadow: none;
+}
+
+.card-table table th {
+    background-color: #F8F8FF;
+    color: #404A8C;
+}
+
+/* 6. Nút Quay lại */
+.button-container {
+    text-align: center;
+    margin-top: 40px;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: #6E79EC;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.3s, transform 0.2s;
+    box-shadow: 0 4px 10px rgba(110, 121, 236, 0.3);
+}
+
+.back-button:hover {
+    background-color: #5B64D3;
+    transform: translateY(-2px);
+}
+
+.back-button i {
+    margin-right: 8px;
+}
+
+/* Responsive adjustment for Grid */
+@media (max-width: 992px) {
+    .main-grid-layout {
+        grid-template-columns: 1fr;
+        gap: 30px;
+    }
+}

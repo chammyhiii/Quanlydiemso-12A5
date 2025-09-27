@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý điểm học sinh</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul class="flashes">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        <h1>Quản Lý Điểm Học Sinh</h1>
+        
+        <div class="forms-container">
+            <div class="form-section">
+                <h2><i class="fas fa-plus-circle"></i> Thêm/Cập nhật Điểm</h2>
+                <form action="{{ url_for('add_score') }}" method="post">
+                    <input type="text" name="name" placeholder="Tên học sinh" required>
+                    <select name="grade" required>
+                        <option value="">-- Khối --</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                    <input type="text" name="class" placeholder="Lớp" required>
+                    <input type="text" name="subject" placeholder="Môn" required>
+                    <select name="semester" required>
+                        <option value="">-- Học kỳ --</option>
+                        <option value="I">I</option>
+                        <option value="II">II</option>
+                    </select>
+                    <input type="number" name="tx1" placeholder="TX1" step="0.1" min="0" max="10">
+                    <input type="number" name="tx2" placeholder="TX2" step="0.1" min="0" max="10">
+                    <input type="number" name="tx3" placeholder="TX3" step="0.1" min="0" max="10">
+                    <input type="number" name="tx4" placeholder="TX4" step="0.1" min="0" max="10">
+                    <input type="number" name="gk" placeholder="Điểm GK" step="0.1" min="0" max="10">
+                    <input type="number" name="ck" placeholder="Điểm CK" step="0.1" min="0" max="10">
+                    <button type="submit">Thêm/Cập nhật</button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h2><i class="fas fa-edit"></i> Sửa Điểm Môn học</h2>
+                <form action="{{ url_for('edit_score') }}" method="post">
+                    <select name="name" required>
+                        <option value="">-- Tên học sinh --</option>
+                        {% for name in student_names %}
+                        <option value="{{ name }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="subject" required>
+                        <option value="">-- Môn --</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject }}">{{ subject }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="semester" required>
+                        <option value="">-- Học kỳ --</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester }}">{{ semester }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="score_type" required>
+                        <option value="">-- Loại điểm --</option>
+                        <option value="TX1">TX1</option>
+                        <option value="TX2">TX2</option>
+                        <option value="TX3">TX3</option>
+                        <option value="TX4">TX4</option>
+                        <option value="GK">GK</option>
+                        <option value="CK">CK</option>
+                    </select>
+                    <input type="number" name="new_score" placeholder="Điểm mới (0-10)" step="0.1" min="0" max="10" required>
+                    <button type="submit">Sửa</button>
+                </form>
+            </div>
+
+            <div class="form-section">
+                <h2><i class="fas fa-trash-alt"></i> Xóa Điểm Môn học</h2>
+                <form action="{{ url_for('delete_score') }}" method="post">
+                    <select name="name" required>
+                        <option value="">-- Tên học sinh --</option>
+                        {% for name in student_names %}
+                        <option value="{{ name }}">{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="subject" required>
+                        <option value="">-- Môn --</option>
+                        {% for subject in subjects %}
+                        <option value="{{ subject }}">{{ subject }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="semester" required>
+                        <option value="">-- Học kỳ --</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester }}">{{ semester }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Xóa</button>
+                </form>
+            </div>
+            
+            <div class="form-section report-btn-section">
+                <h2><i class="fas fa-chart-pie"></i> Báo cáo & Phân tích</h2>
+                <p>Xem báo cáo phân tích toàn diện về kết quả học tập của học sinh.</p>
+                <a href="{{ url_for('report') }}" class="report-button">Xem Báo Cáo</a>
+            </div>
+        </div>
+
+        <h2 class="section-title">Danh sách Điểm Chi Tiết</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tên</th>
+                    <th>Khối</th>
+                    <th>Lớp</th>
+                    <th>Môn</th>
+                    <th>HK</th>
+                    <th>TX1</th>
+                    <th>TX2</th>
+                    <th>TX3</th>
+                    <th>TX4</th>
+                    <th>GK (x2)</th>
+                    <th>CK (x3)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for index, row in df.iterrows() %}
+                <tr>
+                    <td>{{ row['Tên'] }}</td>
+                    <td>{{ row['Khối'] }}</td>
+                    <td>{{ row['Lớp'] }}</td>
+                    <td>{{ row['Môn'] }}</td>
+                    <td>{{ row['HK'] }}</td>
+                    <td>{{ row['TX1'] | float | round(1) if row['TX1'] is not none and row['TX1'] | float is defined else 'N/A' }}</td>
+                    <td>{{ row['TX2'] | float | round(1) if row['TX2'] is not none and row['TX2'] | float is defined else 'N/A' }}</td>
+                    <td>{{ row['TX3'] | float | round(1) if row['TX3'] is not none and row['TX3'] | float is defined else 'N/A' }}</td>
+                    <td>{{ row['TX4'] | float | round(1) if row['TX4'] is not none and row['TX4'] | float is defined else 'N/A' }}</td>
+                    <td>{{ row['GK'] | float | round(1) if row['GK'] is not none and row['GK'] | float is defined else 'N/A' }}</td>
+                    <td>{{ row['CK'] | float | round(1) if row['CK'] is not none and row['CK'] | float is defined else 'N/A' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
