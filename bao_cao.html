@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo Cáo Phân Tích Kết Quả Học Tập</title>
+    <!-- Tải Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tải Font Awesome cho icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+        // Cấu hình Tailwind CSS, đảm bảo font chữ hiển thị tiếng Việt tốt
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'],
+                    },
+                    colors: {
+                        'primary': '#6E79EC', // Màu tím chủ đạo
+                        'secondary': '#58E6D9', // Màu xanh lam phụ
+                        'danger': '#EF4444',
+                        'success': '#10B981',
+                        'warning': '#F59E0B',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 font-sans">
+    <div class="container mx-auto max-w-7xl">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 border-b-4 border-primary pb-3 text-center">
+            <i class="fas fa-chart-bar text-primary mr-3"></i> Báo Cáo Phân Tích Kết Quả Học Tập
+        </h1>
+        
+        <!-- Nút Điều Hướng -->
+        <div class="mb-8 flex justify-center space-x-4">
+            <a href="{{ url_for('index') }}" class="inline-flex items-center px-6 py-2 border border-gray-300 shadow-sm text-base font-medium rounded-full text-gray-700 bg-white hover:bg-gray-100 transition duration-150 transform hover:scale-105">
+                <i class="fas fa-home mr-2"></i> Về Trang Chủ
+            </a>
+            <a href="{{ url_for('manage_scores') }}" class="inline-flex items-center px-6 py-2 border border-transparent shadow-sm text-base font-medium rounded-full text-white bg-secondary hover:bg-teal-500 transition duration-150 transform hover:scale-105">
+                <i class="fas fa-table mr-2"></i> Quản Lý Điểm
+            </a>
+        </div>
+
+        {% if report_data %}
+            {% for grade, data in report_data.items() %}
+            <div class="bg-white shadow-2xl rounded-xl p-8 mb-10 border border-gray-200">
+                <h2 class="text-3xl font-bold text-primary mb-6 border-b pb-2">
+                    <i class="fas fa-graduation-cap mr-2"></i> Phân Tích Khối {{ grade }}
+                </h2>
+
+                <!-- Biểu đồ -->
+                <div class="w-full bg-white rounded-xl p-6 border border-gray-300 shadow-md mb-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Phân Bố Điểm Trung Bình Môn Học</h3>
+                    {% if data.chart_base64 %}
+                        <!-- Hiển thị biểu đồ được tạo từ Matplotlib (base64) -->
+                        <img src="data:image/png;base64,{{ data.chart_base64 }}" alt="Biểu đồ phân bố điểm trung bình" class="w-full h-auto rounded-lg">
+                    {% else %}
+                        <p class="text-center text-gray-500 py-6 text-lg">Không đủ dữ liệu hợp lệ để tạo biểu đồ phân tích.</p>
+                    {% endif %}
+                </div>
+                
+                <!-- Bảng thống kê môn học -->
+                <h3 class="text-2xl font-semibold text-gray-800 mt-8 mb-6 border-b-2 border-gray-200 pb-2">
+                    <i class="fas fa-list-alt mr-2"></i> Thống Kê Chi Tiết Theo Môn Học
+                </h3>
+                <div class="space-y-6">
+                    {% for subject, subj_data in data.subjects.items() %}
+                    <div class="bg-gray-50 border border-primary/50 rounded-lg p-5 shadow-sm transition duration-300 hover:shadow-md">
+                        <h4 class="text-xl font-bold text-primary mb-3">{{ subject }}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            
+                            <!-- Cột Điểm TB -->
+                            <div class="bg-white p-3 rounded-md shadow-inner border-l-4 border-primary">
+                                <p class="text-gray-600 font-medium">Điểm TB Môn:</p>
+                                <p class="text-2xl font-extrabold mt-1 {% if subj_data.avg_score >= 5.0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ "{:.2f}".format(subj_data.avg_score) }}
+                                </p>
+                            </div>
+                            
+                            <!-- Cột Tỷ lệ Đạt -->
+                            <div class="bg-white p-3 rounded-md shadow-inner border-l-4 border-secondary">
+                                <p class="text-gray-600 font-medium">Tỷ lệ Đạt (≥ 5.0):</p>
+                                <p class="text-2xl font-extrabold mt-1 text-secondary">
+                                    {{ "{:.2f}%".format(subj_data.pass_rate) }}
+                                </p>
+                            </div>
+                            
+                            <!-- Cột Học sinh Đạt -->
+                            <div class="bg-white p-3 rounded-md shadow-inner border-l-4 border-success md:col-span-2">
+                                <p class="text-gray-700 font-semibold mb-1"><i class="fas fa-check-circle text-success mr-1"></i> Học sinh ĐẠT:</p>
+                                <p class="text-success text-xs leading-relaxed">
+                                    {{ subj_data.passed_students | join(', ') | default('Không có học sinh nào đạt.') }}
+                                </p>
+                            </div>
+
+                            <!-- Cột Học sinh Không Đạt -->
+                            <div class="bg-white p-3 rounded-md shadow-inner border-l-4 border-danger lg:col-span-4">
+                                <p class="text-gray-700 font-semibold mb-1"><i class="fas fa-times-circle text-danger mr-1"></i> Học sinh CHƯA ĐẠT (TB < 5.0):</p>
+                                <p class="text-danger text-xs leading-relaxed">
+                                    {{ subj_data.failed_students | join(', ') | default('Tất cả học sinh đều đạt.') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Thông báo khi không có dữ liệu báo cáo -->
+            <div class="text-center py-20 bg-white shadow-xl rounded-xl border border-gray-200">
+                <i class="fas fa-exclamation-circle text-5xl text-warning mb-4"></i>
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Chưa có dữ liệu báo cáo</h2>
+                <p class="text-gray-600">Vui lòng tải lên dữ liệu CSV ở Trang Chủ và đảm bảo đã nhập đủ thông tin cần thiết.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

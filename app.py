@@ -8,7 +8,8 @@ import os
 import base64 
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
-app = Flask(__name__)
+# DÒNG SỬA ĐỔI QUAN TRỌNG: Chỉ định thư mục template là thư mục hiện tại ('.')
+app = Flask(__name__, template_folder='.') 
 app.secret_key = 'your_secret_key_very_secure'
 
 # --- KHỞI TẠO VÀ XỬ LÝ DATAFRAME ---
@@ -31,7 +32,7 @@ def load_df():
             initialize_dataframe()
             df = pd.read_json(session['df_data'])
             
-        score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
+        score_cols = ['TX1', 'TX2', 'TX3', 'TX3', 'GK', 'CK']
         for col in score_cols:
              df[col] = pd.to_numeric(df[col], errors='coerce')
         
@@ -309,5 +310,5 @@ if __name__ == '__main__':
     warnings.filterwarnings("ignore", "is_categorical_dtype", module="matplotlib")
     warnings.filterwarnings("ignore", "using an implicitly registered", module="matplotlib")
     
-    app.template_folder = 'templates'
+    # Không cần dòng app.template_folder = 'templates' nữa
     app.run(debug=True)
