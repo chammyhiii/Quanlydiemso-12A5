@@ -1,14 +1,16 @@
 import pandas as pd
 import io
-import matplotlib
-# Sử dụng backend không cần giao diện đồ họa
-matplotlib.use('Agg') 
+import json
 import matplotlib.pyplot as plt
+import matplotlib
 import os
-import base64 
+import base64
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 
-# DÒNG SỬA ĐỔI QUAN TRỌNG: Chỉ định thư mục template là thư mục hiện tại ('.')
+# SỬA LỖI 1: Cần Agg backend để matplotlib hoạt động trên môi trường không giao diện
+matplotlib.use('Agg') 
+
+# SỬA LỖI 2: TRỎ template_folder về thư mục gốc để Flask tìm thấy HTML
 app = Flask(__name__, template_folder='.') 
 app.secret_key = 'your_secret_key_very_secure'
 
@@ -20,295 +22,244 @@ def initialize_dataframe():
     df = pd.DataFrame(columns=cols)
     score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
     for col in score_cols:
-        df[col] = pd.to_numeric(df[col], errors='coerce') 
-    session['df_data'] = df.to_json()
+        # Sử dụng 'float' để xử lý NaN (giá trị thiếu) một cách an toàn
+        df[col] = pd.to_numeric(df[col], errors='coerce').astype('float')
+    return df
 
-def load_df():
-    """Tải DataFrame từ session."""
-    if 'df_data' in session:
-        try:
-            df = pd.read_json(session['df_data'])
-        except ValueError:
-            initialize_dataframe()
-            df = pd.read_json(session['df_data'])
-            
-        score_cols = ['TX1', 'TX2', 'TX3', 'TX3', 'GK', 'CK']
-        for col in score_cols:
-             df[col] = pd.to_numeric(df[col], errors='coerce')
-        
-        # Sửa lỗi: Loại bỏ các dòng thiếu thông tin định danh quan trọng
-        df.dropna(subset=['Tên', 'Khối', 'Lớp', 'Môn', 'HK'], inplace=True)
-        df.drop_duplicates(inplace=True) 
-        return df
-    
-    initialize_dataframe() 
-    return pd.read_json(session['df_data'])
-
+# SỬA LỖI 3: Dùng orient='split' để lưu JSON an toàn hơn cho Pandas
 def save_df(df):
     """Lưu DataFrame vào session."""
-    session['df_data'] = df.to_json()
+    if df is not None and not df.empty:
+        session['df_data'] = df.to_json(orient='split')
+    else:
+        # Xóa dữ liệu cũ nếu DataFrame rỗng
+        session.pop('df_data', None)
 
-@app.before_request
-def before_request():
-    """Khởi tạo DataFrame nếu chưa có trong session."""
-    if 'df_data' not in session:
-        initialize_dataframe()
+# SỬA LỖI 4: Xử lý ngoại lệ để tránh lỗi 500 khi session hỏng hoặc không tồn tại
+def load_df():
+    """Tải DataFrame từ session. TRẢ VỀ DataFrame RỖNG nếu gặp lỗi."""
+    if 'df_data' in session:
+        df_json = session['df_data']
+        try:
+            # Đảm bảo dùng orient='split' khi đọc
+            df = pd.read_json(df_json, orient='split')
+            # Đảm bảo các cột điểm vẫn là float sau khi đọc
+            score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
+            for col in score_cols:
+                 df[col] = pd.to_numeric(df[col], errors='coerce').astype('float')
+            return df
+        except Exception as e:
+            # Nếu có lỗi (dữ liệu JSON hỏng), in lỗi ra console và khởi tạo lại DF
+            print(f"LỖI TẢI DATAFRAME TỪ SESSION: {e}")
+            session.pop('df_data', None)
+            return initialize_dataframe()
+            
+    return initialize_dataframe()
 
-# --- HÀM TÍNH TOÁN & BIỂU ĐỒ ---
-
-def calculate_avg_score(row):
-    """Tính điểm trung bình môn theo công thức (TX1+..+TX4 + GK*2 + CK*3) / (Hệ số tổng)"""
-    score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
-    scores = []
-    weights = []
-    weight_map = {'TX1': 1, 'TX2': 1, 'TX3': 1, 'TX4': 1, 'GK': 2, 'CK': 3}
-
-    for col in score_cols:
-        score = pd.to_numeric(row[col], errors='coerce')
-        if pd.notna(score) and score >= 0:
-            scores.append(score)
-            weights.append(weight_map.get(col, 0))
+# Hàm tính điểm TB (Giữ nguyên)
+def calculate_average_score(row):
+    scores = {}
+    for col, weight in [('TX1', 1), ('TX2', 1), ('TX3', 1), ('TX4', 1), ('GK', 2), ('CK', 3)]:
+        # Bỏ qua NaN
+        if pd.notna(row[col]):
+            scores[col] = (row[col], weight)
     
-    if not weights or sum(weights) == 0:
-        return 0.0
+    if not scores:
+        return pd.NA # Không có điểm nào, trả về NA (Not Available)
 
-    weighted_sum = sum(s * w for s, w in zip(scores, weights))
-    total_weight = sum(weights)
+    total_score = sum(score * weight for score, weight in scores.values())
+    total_weight = sum(weight for score, weight in scores.values())
     
-    return weighted_sum / total_weight
+    return total_score / total_weight if total_weight > 0 else pd.NA
 
-def create_subject_avg_chart(df_grade, grade_name):
-    """Vẽ biểu đồ cột Điểm TB môn theo từng môn trong Khối, trả về ảnh base64."""
-    # Sửa lỗi Font cho Matplotlib (Quan trọng để hiển thị tiếng Việt)
-    plt.rcParams['font.family'] = 'DejaVu Sans' 
-    plt.style.use('seaborn-v0_8-whitegrid')
-    
-    df_grade['TB'] = df_grade.apply(calculate_avg_score, axis=1)
-    df_chart = df_grade[df_grade['TB'] > 0] 
-        
-    if df_chart.empty:
-        return None
-        
-    subject_avg = df_chart.groupby('Môn')['TB'].mean().sort_values(ascending=False)
-
-    if subject_avg.empty:
-        return None
-        
-    fig, ax = plt.subplots(figsize=(10, 5))
-    primary_color = '#6E79EC'
-    
-    bars = ax.bar(subject_avg.index, subject_avg.values, color=primary_color, alpha=0.8)
-    
-    for bar in bars:
-        yval = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width()/2.0, yval + 0.1, round(yval, 2), ha='center', va='bottom', fontsize=10)
-
-    ax.set_ylim(0, 10.5) 
-
-    ax.set_title(f'Phân Bố Điểm Trung Bình Môn Học - Khối {grade_name}', fontsize=14, pad=15)
-    ax.set_ylabel('Điểm Trung bình (TB)', fontsize=12)
-    ax.set_xlabel('Môn Học', fontsize=12)
-    plt.xticks(rotation=45, ha='right')
-    plt.grid(axis='y', linestyle='--', alpha=0.6)
-    plt.tight_layout()
-
-    # Chuyển biểu đồ sang base64
-    img = io.BytesIO()
-    plt.savefig(img, format='png', bbox_inches='tight')
-    plt.close(fig) 
-    img.seek(0)
-    
-    return base64.b64encode(img.getvalue()).decode('utf8')
-
-# --- ROUTES (Không thay đổi) ---
+# --- CÁC HÀM ROUTE (ĐÃ ĐƠN GIẢN HÓA VÀ KẾT NỐI VỚI load_df) ---
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         if 'csv_file' not in request.files:
-            flash('Không tìm thấy file được tải lên.', 'error')
+            flash('Không tìm thấy file tải lên.', 'error')
             return redirect(request.url)
         
         file = request.files['csv_file']
-        
         if file.filename == '':
-            flash('Chưa chọn file nào.', 'error')
+            flash('Vui lòng chọn file.', 'error')
             return redirect(request.url)
-            
+        
         if file and file.filename.endswith('.csv'):
             try:
-                stream = io.StringIO(file.stream.read().decode("utf-8"))
-                new_df = pd.read_csv(stream, delimiter=',', decimal='.', keep_default_na=True, na_values=[''])
+                # Đọc file CSV
+                file_content = file.read().decode('utf-8')
+                df = pd.read_csv(io.StringIO(file_content))
                 
-                for col in ['Tên', 'Khối', 'Lớp', 'Môn', 'HK']:
-                     if col in new_df.columns:
-                        new_df[col] = new_df[col].astype(str).str.strip() 
+                # Áp dụng logic chuẩn hóa và lưu
+                df = df.rename(columns=lambda x: x.strip())
+                df = df.fillna(pd.NA)
                 
+                # Khởi tạo lại các cột điểm để đảm bảo kiểu float
                 score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
                 for col in score_cols:
-                    if col in new_df.columns:
-                        new_df[col] = pd.to_numeric(new_df[col], errors='coerce')
-                    else:
-                        new_df[col] = pd.NA
-
-                cols_to_keep = ['Tên', 'Khối', 'Lớp', 'Môn', 'HK'] + score_cols
-                new_df = new_df[[col for col in cols_to_keep if col in new_df.columns]]
+                     df[col] = pd.to_numeric(df[col], errors='coerce').astype('float')
                 
-                new_df.dropna(subset=['Tên', 'Khối', 'Lớp', 'Môn', 'HK'], inplace=True)
-                
-                save_df(new_df)
-                flash('Tải lên thành công! Dữ liệu đã được cập nhật.', 'success')
+                # SỬA LỖI 5: Đảm bảo DF được lưu ngay sau khi tải lên thành công
+                save_df(df)
+                flash('Tải lên thành công! Dữ liệu đã sẵn sàng để phân tích.', 'success')
                 return redirect(url_for('manage_scores'))
-                
+
             except Exception as e:
-                flash(f'Lỗi xử lý file CSV. Vui lòng kiểm tra định dạng cột: {e}', 'error')
-                initialize_dataframe()
+                flash(f'Lỗi xử lý file CSV: {e}. Vui lòng kiểm tra định dạng.', 'error')
                 return redirect(request.url)
-    
-    return render_template('index.html', error=request.args.get('error'))
 
+    return render_template('index.html')
 
-@app.route('/manage', methods=['GET'])
+@app.route('/manage_scores', methods=['GET', 'POST'])
 def manage_scores():
     df = load_df()
     
-    sort_cols = [col for col in ['Khối', 'Lớp', 'Môn', 'Tên'] if col in df.columns]
-    if sort_cols:
-        df_sorted = df.sort_values(by=sort_cols, ascending=True)
-    else:
-        df_sorted = df
-        
+    # Chuẩn bị danh sách cho form (Sử dụng .unique() để lấy các giá trị duy nhất)
+    # Nếu df rỗng, list() sẽ trả về danh sách rỗng, template vẫn chạy an toàn
+    student_names = df['Tên'].dropna().unique().tolist() if 'Tên' in df.columns else []
     grades = df['Khối'].dropna().unique().tolist() if 'Khối' in df.columns else []
     classes = df['Lớp'].dropna().unique().tolist() if 'Lớp' in df.columns else []
     subjects = df['Môn'].dropna().unique().tolist() if 'Môn' in df.columns else []
-    semesters = df['HK'].dropna().unique().tolist() if 'HK' in df.columns else []
+    semesters = df['HK'].dropna().unique().tolist() if 'HK' in df.columns else ['HK1', 'HK2'] # Default values
 
+    # Sắp xếp DataFrame để hiển thị đẹp hơn
+    if not df.empty:
+        df = df.sort_values(by=['Khối', 'Lớp', 'Môn'], na_position='first')
+    
     return render_template('quan_ly_diem.html', 
-                           df=df_sorted, 
-                           grades=grades,
-                           classes=classes,
-                           subjects=subjects,
+                           df=df, 
+                           student_names=student_names, 
+                           grades=grades, 
+                           classes=classes, 
+                           subjects=subjects, 
                            semesters=semesters)
-
 
 @app.route('/add_score', methods=['POST'])
 def add_score():
     df = load_df()
     
-    name = request.form.get('name_new', '').strip()
-    grade = request.form.get('grade', '').strip()
-    class_name = request.form.get('class', '').strip()
-    subject = request.form.get('subject', '').strip()
-    semester = request.form.get('semester', '').strip()
+    # Lấy dữ liệu từ form
+    name = request.form.get('name_new') # Lấy tên học sinh mới (nhập thủ công)
+    grade = request.form.get('grade')
+    class_name = request.form.get('class')
+    subject = request.form.get('subject')
+    semester = request.form.get('semester')
     diem_column = request.form.get('diem_column')
-    diem_value_str = request.form.get('diem_value')
+    diem_value = request.form.get('diem_value')
 
-    if not name or not grade or not class_name or not subject or not semester or not diem_column:
-        flash('Vui lòng điền đầy đủ thông tin Tên, Khối, Lớp, Môn, Học kỳ và Cột điểm.', 'error')
+    if not all([name, grade, class_name, subject, semester, diem_column, diem_value]):
+        flash('Vui lòng điền đầy đủ thông tin.', 'error')
         return redirect(url_for('manage_scores'))
-        
+    
     try:
-        diem_value = float(diem_value_str)
-        if not (0.0 <= diem_value <= 10.0):
-            flash('Điểm nhập vào phải từ 0.0 đến 10.0.', 'error')
+        score = float(diem_value)
+        if not (0.0 <= score <= 10.0):
+            flash('Điểm phải nằm trong khoảng 0.0 đến 10.0.', 'error')
             return redirect(url_for('manage_scores'))
+
+        # Tìm dòng cần cập nhật (hoặc tạo dòng mới)
+        filter_mask = (df['Tên'] == name) & \
+                      (df['Khối'] == grade) & \
+                      (df['Lớp'] == class_name) & \
+                      (df['Môn'] == subject) & \
+                      (df['HK'] == semester)
+        
+        if df[filter_mask].empty:
+            # Tạo dòng mới nếu không tìm thấy
+            new_row = {
+                'Tên': name,
+                'Khối': grade,
+                'Lớp': class_name,
+                'Môn': subject,
+                'HK': semester,
+                'TX1': pd.NA, 'TX2': pd.NA, 'TX3': pd.NA, 'TX4': pd.NA, 'GK': pd.NA, 'CK': pd.NA,
+                diem_column: score # Cập nhật điểm ngay lập tức
+            }
+            # Thêm dòng mới vào DataFrame
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            flash(f'Thêm điểm mới ({score}) cho học sinh {name} thành công!', 'success')
+        else:
+            # Cập nhật điểm trên dòng đã tồn tại
+            df.loc[filter_mask, diem_column] = score
+            flash(f'Cập nhật điểm {diem_column} ({score}) cho {name} thành công!', 'success')
+
+        save_df(df) # Lưu DataFrame đã cập nhật vào session
+        
     except ValueError:
         flash('Giá trị điểm không hợp lệ.', 'error')
-        return redirect(url_for('manage_scores'))
-        
-    condition = (df['Tên'].str.strip() == name) & \
-                (df['Khối'].str.strip() == grade) & \
-                (df['Lớp'].str.strip() == class_name) & \
-                (df['Môn'].str.strip() == subject) & \
-                (df['HK'].str.strip() == semester)
+    except Exception as e:
+        flash(f'Lỗi không xác định khi cập nhật điểm: {e}', 'error')
 
-    if condition.any():
-        df.loc[condition, diem_column] = diem_value
-        flash(f'Cập nhật điểm {diem_column} môn {subject} cho {name} thành công!', 'success')
-    else:
-        new_row = {
-            'Tên': name, 
-            'Khối': grade, 
-            'Lớp': class_name, 
-            'Môn': subject, 
-            'HK': semester,
-            diem_column: diem_value
-        }
-        score_cols = ['TX1', 'TX2', 'TX3', 'TX4', 'GK', 'CK']
-        for col in score_cols:
-            if col not in new_row:
-                new_row[col] = pd.NA
-                
-        cols = ['Tên', 'Khối', 'Lớp', 'Môn', 'HK'] + score_cols
-        new_df_row = pd.DataFrame([new_row], columns=cols)
-        
-        df = pd.concat([df, new_df_row], ignore_index=True)
-        flash(f'Thêm mới điểm {diem_column} môn {subject} cho {name} thành công!', 'success')
-
-    save_df(df)
     return redirect(url_for('manage_scores'))
 
-
-@app.route('/report', methods=['GET'])
+@app.route('/report')
 def report():
     df = load_df()
-    
-    if df.empty or 'Tên' not in df.columns:
-        flash('Chưa có dữ liệu hoặc dữ liệu không hợp lệ để tạo báo cáo.', 'warning')
-        return render_template('bao_cao.html', report_data={})
-
-    df['TB'] = df.apply(calculate_avg_score, axis=1)
-    
     report_data = {}
-    grades = df['Khối'].unique().tolist()
-    
-    for grade in grades:
+
+    if df.empty:
+        return render_template('bao_cao.html', report_data=None)
+
+    # Thêm cột điểm trung bình (TB)
+    df['TB'] = df.apply(calculate_average_score, axis=1)
+
+    # Phân tích theo Khối
+    for grade in df['Khối'].dropna().unique():
         df_grade = df[df['Khối'] == grade].copy()
         subjects_data = {}
         
-        chart_base64 = create_subject_avg_chart(df_grade, grade)
-
-        subjects = df_grade['Môn'].unique().tolist()
-        
-        for subject in subjects:
+        # Phân tích theo Môn học
+        for subject in df_grade['Môn'].dropna().unique():
             df_subject = df_grade[df_grade['Môn'] == subject].copy()
-            df_subject_valid = df_subject[df_subject['TB'] > 0]
             
-            if df_subject_valid.empty:
-                 subjects_data[subject] = {
-                    'avg_score': 0.0,
-                    'pass_rate': 0.0,
-                    'passed_students': [],
-                    'failed_students': []
-                }
-                 continue
-
-            avg_score = df_subject_valid['TB'].mean()
-            passed_students = df_subject_valid[df_subject_valid['TB'] >= 5.0]['Tên'].tolist()
-            failed_students = df_subject_valid[df_subject_valid['TB'] < 5.0]['Tên'].tolist()
+            # Tính toán thống kê
+            total_students = len(df_subject)
+            passed_students_df = df_subject[df_subject['TB'] >= 5.0].dropna(subset=['TB'])
+            passed_count = len(passed_students_df)
             
-            total_students = len(df_subject_valid)
-            pass_rate = (len(passed_students) / total_students * 100) if total_students > 0 else 0.0
-
+            avg_score = df_subject['TB'].mean()
+            pass_rate = (passed_count / total_students) * 100 if total_students > 0 else 0
+            
+            passed_students = passed_students_df['Tên'].tolist()
+            # Học sinh chưa đạt là những người có điểm TB < 5.0
+            failed_students = df_subject[(df_subject['TB'] < 5.0) & (df_subject['TB'].notna())]['Tên'].tolist()
+            
             subjects_data[subject] = {
                 'avg_score': avg_score,
                 'pass_rate': pass_rate,
                 'passed_students': passed_students,
                 'failed_students': failed_students
             }
+
+        # Tạo Biểu đồ (Plotting)
+        chart_base64 = None
+        if not df_grade['TB'].dropna().empty:
+            plt.figure(figsize=(10, 6))
+            df_grade['TB'].plot(kind='hist', bins=10, edgecolor='black', color='#6E79EC')
+            plt.title(f'Phân bố Điểm TB Khối {grade}')
+            plt.xlabel('Điểm Trung Bình')
+            plt.ylabel('Số lượng Học sinh')
             
+            # Đánh dấu ngưỡng 5.0
+            plt.axvline(x=5.0, color='#FF3B30', linestyle='--', linewidth=1.5, label='Ngưỡng Đạt')
+            plt.legend()
+            
+            # Lưu biểu đồ vào bộ nhớ đệm và chuyển thành base64
+            img = io.BytesIO()
+            plt.savefig(img, format='png')
+            img.seek(0)
+            chart_base64 = base64.b64encode(img.getvalue()).decode()
+            plt.close() # Đóng figure để giải phóng bộ nhớ
+
         report_data[grade] = {
-            'chart_base64': chart_base64,
-            'subjects': subjects_data
+            'subjects': subjects_data,
+            'chart_base64': chart_base64
         }
 
     return render_template('bao_cao.html', report_data=report_data)
 
-
 if __name__ == '__main__':
-    import warnings
-    warnings.filterwarnings("ignore", "is_categorical_dtype", module="matplotlib")
-    warnings.filterwarnings("ignore", "using an implicitly registered", module="matplotlib")
-    
-    # Không cần dòng app.template_folder = 'templates' nữa
+    # Lưu ý: Khi deploy trên GitHub Pages, server tự chạy, không dùng if __name__ == '__main__'
     app.run(debug=True)
